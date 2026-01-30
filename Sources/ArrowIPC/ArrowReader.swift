@@ -189,26 +189,18 @@ public struct ArrowReader {
 
     // MARK: Load arrays
     let nullCount = Int(node.nullCount)
-    let length = Int(node.length)
-    let nullsPresent = nullCount > 0
-    let nullBuffer: NullBuffer
-    if nullsPresent {
-      if nullCount == 0 {
-        nullBuffer = AllValidNullBuffer(valueCount: length)
-      } else if length == 0 {
-        nullBuffer = AllValidNullBuffer(valueCount: 0)
-      } else if nullCount == length {
-        nullBuffer = AllNullBuffer(valueCount: length)
-      } else {
-        nullBuffer = NullBufferIPC(
-          buffer: buffer0, valueCount: length, nullCount: nullCount)
-      }
-    } else {
-      nullBuffer = AllValidNullBuffer(valueCount: length)
+    if nullCount > 0 && !field.isNullable {
+      print("Nullability violated for field \(field.name)")
     }
-
-    if nullsPresent && !field.isNullable {
-      print("Nullabity violated for field \(field.name)")
+    let length = Int(node.length)
+    let nullBuffer: NullBuffer
+    if nullCount == 0 {
+      nullBuffer = AllValidNullBuffer(valueCount: length)
+    } else if nullCount == length {
+      nullBuffer = AllNullBuffer(valueCount: length)
+    } else {
+      nullBuffer = NullBufferIPC(
+        buffer: buffer0, valueCount: length, nullCount: nullCount)
     }
 
     let arrowType = field.type
@@ -426,108 +418,28 @@ public struct ArrowReader {
       switch arrowType {
       case .list(let childField), .map(let childField, _):
         // A map is simply a list of struct<k,v> items.
-        let buffer1 = try nextBuffer(
-          message: rbMessage, index: &bufferIndex, offset: offset, data: data)
-        var offsetsBuffer = FixedWidthBufferIPC<Int32>(
-          buffer: buffer1
-        )
-
-        let array: AnyArrowArrayProtocol = try loadField(
-          data: data,
+        return try loadListArray(
+          offsetType: Int32.self,
           rbMessage: rbMessage,
-          field: childField,
-          offset: offset,
-          nodeIndex: &nodeIndex,
           bufferIndex: &bufferIndex,
-          variadicBufferIndex: &variadicBufferIndex
-        )
-
-        if offsetsBuffer.length == 0 {
-          // Empty offsets buffer is valid when child array is empty
-          // There could be any number of empty lists referencing into an empty list
-          guard array.length == 0 else {
-            throw .init(
-              .invalid("Empty offsets buffer but non-empty child array")
-            )
-          }
-          let emptyBuffer = emptyOffsetBuffer(offsetCount: length + 1)
-          offsetsBuffer = FixedWidthBufferIPC<Int32>(
-            buffer: emptyBuffer
-          )
-        } else {
-          let requiredBytes = (length + 1) * MemoryLayout<Int32>.stride
-          guard offsetsBuffer.length >= requiredBytes else {
-            throw ArrowError(
-              .invalid(
-                "Offsets buffer of length: \(offsetsBuffer.length) too small: need \(requiredBytes) bytes for \(length) lists"
-              )
-            )
-          }
-          // Verify last offset matches child array length
-          let lastOffset = offsetsBuffer[length]
-          guard lastOffset == array.length else {
-            throw ArrowError(
-              .invalid(
-                "Expected last offset to match child array length."))
-          }
-        }
-        return makeListArray(
+          offset: offset, data: data,
+          childField: childField,
+          nodeIndex: &nodeIndex,
+          variadicBufferIndex: &variadicBufferIndex,
           length: length,
-          nullBuffer: nullBuffer,
-          offsetsBuffer: offsetsBuffer,
-          values: array
+          nullBuffer: nullBuffer
         )
       case .largeList(let childField):
-        let buffer1 = try nextBuffer(
-          message: rbMessage, index: &bufferIndex, offset: offset, data: data)
-        var offsetsBuffer = FixedWidthBufferIPC<Int64>(
-          buffer: buffer1
-        )
-
-        let array: AnyArrowArrayProtocol = try loadField(
-          data: data,
+        return try loadListArray(
+          offsetType: Int64.self,
           rbMessage: rbMessage,
-          field: childField,
-          offset: offset,
-          nodeIndex: &nodeIndex,
           bufferIndex: &bufferIndex,
-          variadicBufferIndex: &variadicBufferIndex
-        )
-
-        if offsetsBuffer.length == 0 {
-          // Empty offsets buffer is valid when child array is empty
-          // There could be any number of empty lists referencing into an empty list
-          guard array.length == 0 else {
-            throw .init(
-              .invalid("Empty offsets buffer but non-empty child array")
-            )
-          }
-          let emptyBuffer = emptyOffsetBuffer(offsetCount: length + 1)
-          offsetsBuffer = FixedWidthBufferIPC<Int64>(
-            buffer: emptyBuffer
-          )
-        } else {
-          let requiredBytes = (length + 1) * MemoryLayout<Int64>.stride
-          guard offsetsBuffer.length >= requiredBytes else {
-            throw ArrowError(
-              .invalid(
-                "Offsets buffer of length: \(offsetsBuffer.length) too small: need \(requiredBytes) bytes for \(length) lists"
-              )
-            )
-          }
-          // Verify last offset matches child array length
-          let lastOffset = offsetsBuffer[length]
-          guard lastOffset == array.length else {
-            throw ArrowError(
-              .invalid(
-                "Expected last offset to match child array length."))
-          }
-        }
-        return makeListArray(
+          offset: offset, data: data,
+          childField: childField,
+          nodeIndex: &nodeIndex,
+          variadicBufferIndex: &variadicBufferIndex,
           length: length,
-          nullBuffer: nullBuffer,
-          offsetsBuffer: offsetsBuffer,
-          values: array
+          nullBuffer: nullBuffer
         )
       case .fixedSizeList(let field, let listSize):
         let array: AnyArrowArrayProtocol = try loadField(
@@ -623,13 +535,61 @@ public struct ArrowReader {
     )
   }
 
-  static func makeListArray<OffsetType>(
+  private static func loadListArray<
+    T: FixedWidthInteger & BitwiseCopyable & SignedInteger
+  >(
+    offsetType: T.Type,
+    rbMessage: FRecordBatch,
+    bufferIndex: inout Int32,
+    offset: Int64,
+    data: Data,
+    childField: ArrowField,
+    nodeIndex: inout Int32,
+    variadicBufferIndex: inout Int32,
+    length: Int,
+    nullBuffer: any NullBuffer
+  ) throws(ArrowError) -> any AnyArrowArrayProtocol {
+    let buffer1 = try nextBuffer(
+      message: rbMessage, index: &bufferIndex, offset: offset, data: data)
+    let offsetsBuffer = FixedWidthBufferIPC<T>(buffer: buffer1)
+    let array: AnyArrowArrayProtocol = try loadField(
+      data: data,
+      rbMessage: rbMessage,
+      field: childField,
+      offset: offset,
+      nodeIndex: &nodeIndex,
+      bufferIndex: &bufferIndex,
+      variadicBufferIndex: &variadicBufferIndex
+    )
+    return try makeListArray(
+      length: length,
+      nullBuffer: nullBuffer,
+      offsetsBuffer: offsetsBuffer,
+      values: array
+    )
+  }
+
+  private static func makeListArray<OffsetType>(
     length: Int,
     nullBuffer: NullBuffer,
     offsetsBuffer: any FixedWidthBufferProtocol<OffsetType>,
     values: AnyArrowArrayProtocol
-  ) -> ArrowListArray<OffsetType> {
-    ArrowListArray(
+  ) throws(ArrowError) -> ArrowListArray<OffsetType> {
+    let requiredBytes = (length + 1) * MemoryLayout<OffsetType>.stride
+    guard offsetsBuffer.length >= requiredBytes else {
+      throw ArrowError(
+        .invalid(
+          "Offsets buffer of length: \(offsetsBuffer.length) too small: need \(requiredBytes) bytes for \(length) lists"
+        )
+      )
+    }
+    // Verify last offset matches child array length
+    let lastOffset = offsetsBuffer[length]
+    guard lastOffset == values.length else {
+      throw ArrowError(
+        .invalid("Expected last offset to match child array length."))
+    }
+    return ArrowListArray(
       length: length,
       nullBuffer: nullBuffer,
       offsetsBuffer: offsetsBuffer,
@@ -649,19 +609,6 @@ public struct ArrowReader {
       fields.append(arrowField)
     }
     return ArrowSchema(fields, metadata: metadata)
-  }
-
-  //TODO: This is for the special-case where buffer length 0 means all-zero offset.
-  // Would be better to have a specialised empty null buffer
-  static func emptyOffsetBuffer(offsetCount: Int) -> FileDataBuffer {
-    let byteCount = offsetCount * MemoryLayout<Int32>.stride
-    if offsetCount > 0 {
-      fatalError()
-    }
-    return FileDataBuffer(
-      data: Data(count: byteCount),  // Zero-initialized
-      range: 0..<byteCount
-    )
   }
 
 }

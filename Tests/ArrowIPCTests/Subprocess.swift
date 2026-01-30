@@ -28,8 +28,9 @@ func pyArrowRoundTrip(ipcData: Data) async throws -> Data {
     arguments: [
       "-c",
       """
-      import pyarrow as pa
       import sys
+
+      import pyarrow as pa
       from io import BytesIO
 
       input_data = sys.stdin.buffer.read()

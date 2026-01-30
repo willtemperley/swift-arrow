@@ -57,6 +57,9 @@ extension ArrowWriter {
     } else if case .list(let childField) = field.type {
       let offset = try write(field: childField, to: &fbb)
       fieldsOffset = fbb.createVector(ofOffsets: [offset])
+    } else if case .largeList(let childField) = field.type {
+      let offset = try write(field: childField, to: &fbb)
+      fieldsOffset = fbb.createVector(ofOffsets: [offset])
     } else if case .fixedSizeList(let childField, _) = field.type {
       let offset = try write(field: childField, to: &fbb)
       fieldsOffset = fbb.createVector(ofOffsets: [offset])
@@ -179,6 +182,9 @@ extension ArrowWriter {
     case .list:
       let startOffset = FList.startList(&fbb)
       return FList.endList(&fbb, start: startOffset)
+    case .largeList:
+      let startOffset = FLargeList.startLargeList(&fbb)
+      return FLargeList.endLargeList(&fbb, start: startOffset)
     case .fixedSizeList(_, let listSize):
       let startOffset = FFixedSizeList.startFixedSizeList(&fbb)
       FFixedSizeList.add(listSize: listSize, &fbb)

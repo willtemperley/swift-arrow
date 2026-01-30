@@ -39,6 +39,7 @@ typealias FTimeUnit = org_apache_arrow_flatbuf_TimeUnit
 // MARK: Nested types.
 typealias FStruct = org_apache_arrow_flatbuf_Struct_
 typealias FList = org_apache_arrow_flatbuf_List
+typealias FLargeList = org_apache_arrow_flatbuf_LargeList
 typealias FMap = org_apache_arrow_flatbuf_Map
 typealias FFixedSizeList = org_apache_arrow_flatbuf_FixedSizeList
 

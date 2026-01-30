@@ -8,7 +8,7 @@ The in-memory contiguous buffers allow constant-time random access to large, str
 
 IPC deserialization has been tested against the Arrow integration testing JSON files (gold test files), using the following strategy:
 
-1. Read the [Arrow cpp21 generated files](https://github.com/apache/arrow-testing/tree/master/data/arrow-ipc-stream/integration/cpp-21.0.0) into memory.
+1. Read the Arrow integration test files into memory.
 2. Encode the results to Codable & Equatable structs that can read and write the [test data format.](https://arrow.apache.org/docs/format/Integration.html#json-test-data-format).
 3. Read the test JSON into the same Codable & Equatable struct and compare with the deserialized results,using Swift equality. This 
 

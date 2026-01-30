@@ -257,6 +257,8 @@ extension ArrowType {
       return .struct_
     case .list:
       return .list
+    case .largeList:
+      return .largelist
     case .map:
       return .map
     case .fixedSizeBinary:

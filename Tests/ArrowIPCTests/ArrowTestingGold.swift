@@ -35,17 +35,16 @@ struct ArrowTestingGold {
     "generated_binary_zerolength",
     "generated_custom_metadata",
     "generated_datetime",
+    "generated_duplicate_fieldnames",
     "generated_nested",
-    //    "generated_nested_large_offsets",
+    "generated_nested_large_offsets",
     "generated_recursive_nested",
     "generated_large_binary",
     "generated_map",
-    //    "generated_map_non_canonical",
     "generated_duration",
     "generated_primitive",
     "generated_primitive_no_batches",
     "generated_primitive_zerolength",
-    "generated_duplicate_fieldnames",
   ]
 
   static let allTestCases: [String] = [
