@@ -31,7 +31,6 @@ public struct ArrowField: Codable, Sendable {
   ///
   /// If true, the field *may* contain null values.
   public var isNullable: Bool
-  public let orderedDict: Bool
   /// A map of key-value pairs containing additional custom meta data.
   public var metadata: [String: String]
 }
@@ -60,7 +59,6 @@ extension ArrowField {
     self.name = name
     self.type = dataType
     self.isNullable = isNullable
-    self.orderedDict = false
     self.metadata = metadata
   }
 
@@ -76,21 +74,20 @@ extension ArrowField {
     )
   }
 
-  /// Create a new `ArrowField` suitable for `ArrowType::Dictionary`.
-  ///
-  public init(
-    dictWithName: String,
-    key: ArrowType,
-    value: ArrowType,
-    isNullable: Bool
-  ) {
-    precondition(
-      key.isDictionaryKeyType,
-      "\(key) is not a valid dictionary key"
-    )
-    let dataType: ArrowType = .dictionary(key, value)
-    self = Self(name: dictWithName, dataType: dataType, isNullable: isNullable)
-  }
+//  /// Create a new `ArrowField` suitable for `ArrowType::Dictionary`.
+//  public init(
+//    dictWithName: String,
+//    key: ArrowType,
+//    value: ArrowType,
+//    isNullable: Bool
+//  ) {
+//    precondition(
+//      key.isDictionaryKeyType,
+//      "\(key) is not a valid dictionary key"
+//    )
+//    let dataType: ArrowType = .dictionary(key, value)
+//    self = Self(name: dictWithName, dataType: dataType, isNullable: isNullable)
+//  }
 
   /// Create a new struct `ArrowField`.
   ///
@@ -218,7 +215,7 @@ extension ArrowField {
   @inlinable
   public var dictIsOrdered: Bool {
     switch self.type {
-    case .dictionary: return self.orderedDict
+    case .dictionary(_, let isOrdered, _, _): return isOrdered
     default: return false
     }
   }

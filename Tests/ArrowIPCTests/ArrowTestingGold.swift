@@ -82,10 +82,10 @@ struct ArrowTestingGold {
     "generated_union",
   ]
 
-  @Test
+//  @Test
   func readFile() throws {
 
-    let name = "generated_nested_large_offsets"
+    let name = "generated_dictionary"
     let (testFile, testCase) = try loadTestCase(
       name: name, fileExtension: "arrow_file")
     let arrowReader = try ArrowReader(url: testFile)

@@ -13,15 +13,21 @@
 // limitations under the License.
 
 typealias FFooter = org_apache_arrow_flatbuf_Footer
+
+typealias FMessageHeader = org_apache_arrow_flatbuf_MessageHeader
 typealias FMessage = org_apache_arrow_flatbuf_Message
+
 typealias FBlock = org_apache_arrow_flatbuf_Block
 typealias FField = org_apache_arrow_flatbuf_Field
 typealias FSchema = org_apache_arrow_flatbuf_Schema
 typealias FBuffer = org_apache_arrow_flatbuf_Buffer
 typealias FFieldNode = org_apache_arrow_flatbuf_FieldNode
-typealias FRecordBatch = org_apache_arrow_flatbuf_RecordBatch
-typealias FMessageHeader = org_apache_arrow_flatbuf_MessageHeader
 typealias FKeyValue = org_apache_arrow_flatbuf_KeyValue
+
+// MARK: Record batches.
+typealias FRecordBatch = org_apache_arrow_flatbuf_RecordBatch
+typealias FDictionaryBatch = org_apache_arrow_flatbuf_DictionaryBatch
+typealias FDictionaryEncoding = org_apache_arrow_flatbuf_DictionaryEncoding
 
 // MARK: Top level type.
 typealias FType = org_apache_arrow_flatbuf_Type_

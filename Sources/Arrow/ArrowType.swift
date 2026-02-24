@@ -293,7 +293,7 @@ public indirect enum ArrowType: Codable, Sendable, Equatable {
   ///
   /// This type mostly used to represent low cardinality string
   /// arrays or a limited set of primitive types as integers.
-  case dictionary(ArrowType, ArrowType)
+  case dictionary(id: Int64, isOrdered: Bool, key: ArrowType, value: ArrowType)
   /// Exact 32-bit width decimal value with precision and scale
   ///
   /// * precision is the total number of digits
@@ -496,8 +496,8 @@ extension ArrowType: CustomStringConvertible {
       return "LargeListView(\(elementType))"
     case .union(let mode, let fields):
       return "Union(\(mode), \(fields) fields)"
-    case .dictionary(let keyType, let valueType):
-      return "Dictionary(\(keyType), \(valueType))"
+    case .dictionary(let id, let isOrdered, let keyType, let valueType):
+      return "Dictionary(\(id), \(isOrdered), \(keyType), \(valueType))"
     case .decimal32(let precision, let scale):
       return "Decimal32(\(precision), \(scale))"
     case .decimal64(let precision, let scale):
@@ -627,7 +627,7 @@ extension ArrowType {
   @inlinable
   public var isNested: Bool {
     switch self {
-    case .dictionary(_, let v):
+    case .dictionary(_, _, _, let v):
       return v.isNested
     case .runEndEncoded(_, let v):
       return v.type.isNested
@@ -699,7 +699,8 @@ extension ArrowType {
         && aField.type.equalsDataType(bField.type) && aSorted == bSorted
 
     // Dictionary
-    case (.dictionary(let aKey, let aValue), .dictionary(let bKey, let bValue)):
+    case (.dictionary(_, _, let aKey, let aValue), .dictionary(_, _, let bKey, let bValue)):
+      // Ignoring dictionary id here.
       return aKey.equalsDataType(bKey) && aValue.equalsDataType(bValue)
 
     // RunEndEncoded
@@ -855,7 +856,7 @@ extension ArrowType {
       }
 
     // Dictionary
-    case (.dictionary(let k1, let v1), .dictionary(let k2, let v2)):
+    case (.dictionary(_, _, let k1, let v1), .dictionary(_, _, let k2, let v2)):
       return k1.contains(k2) && v1.contains(v2)
 
     // Base case: equality

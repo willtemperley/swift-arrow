@@ -90,6 +90,51 @@ public struct ArrowReader {
     let arrowSchema = try Self.loadSchema(schema: schema)
     var recordBatches: [RecordBatch] = []
 
+    for block in footer.dictionaries {
+      let (message, bodyOffset) = try data.withParserSpan { input in
+        try input.seek(toAbsoluteOffset: block.offset)
+        let marker = try UInt32(parsingLittleEndian: &input)
+        if marker != continuationMarker {
+          throw ArrowError(.invalid("Missing continuation marker."))
+        }
+        let messageLength = try UInt32(parsingLittleEndian: &input)
+        let data = try [UInt8](parsing: &input, byteCount: Int(messageLength))
+        var mbb = ByteBuffer(data: Data(data))
+        let message: FMessage = getRoot(byteBuffer: &mbb)
+        let offset = Int64(input.startPosition)
+        return (message, offset)
+      }
+
+      guard message.headerType == .dictionarybatch else {
+        throw ArrowError(.invalid("Expected DictionaryBatch message."))
+      }
+
+      guard let dictMessage = message.header(type: FDictionaryBatch.self) else {
+        throw ArrowError(.invalid("Expected DictionaryBatch as message header"))
+      }
+
+      // 1. Get the Dictionary ID and 'isDelta' flag
+      let dictId = dictMessage.id
+      let isDelta = dictMessage.isDelta
+
+      // 2. The dictionary data is actually just a RecordBatch with ONE column
+      // The schema for this internal batch is defined by the dictionary type
+      // found in the global Schema for this specific ID.
+      guard let rbMessage = dictMessage.data else {
+        throw ArrowError(.invalid("DictionaryBatch has no data"))
+      }
+
+      let dictBatch = try Self.loadRecordBatch(
+        data: self.data,
+        arrowSchema: arrowSchema,
+        rbMessage: rbMessage,
+        offset: bodyOffset
+      )
+
+      // 4. Update the "Box" in your provider
+      //        try dictionaryProvider.update(id: dictId, array: dictionaryArray, isDelta: isDelta)
+    }
+
     // MARK: Record batch parsing
     for block in footer.recordBatches {
 
