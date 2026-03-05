@@ -27,16 +27,18 @@ public class ArrowTable {
 
   /// Create an ArrowTable from a 'RecordBatch' list.
   /// - Parameter recordBatches: The record batches.
+  /// - Parameter schema: An optional schema, defaulting to the record batch schema.
   /// - Returns: An `ArrowResult` holding an `ArrowTable` on success.
   /// - Throws: an `ArrowError` if arrays have no elements or if elements have mismatched types.
   public static func from(
-    recordBatches: [RecordBatch]
+    recordBatches: [RecordBatch],
+    schema: ArrowSchema? = nil
   ) throws(ArrowError) -> ArrowTable {
     if recordBatches.isEmpty {
       throw .init(.arrayHasNoElements)
     }
     var holders: [[AnyArrowArrayProtocol]] = []
-    let schema = recordBatches[0].schema
+    let schema = schema ?? recordBatches[0].schema
     for recordBatch in recordBatches {
       for index in 0..<schema.fields.count {
         if holders.count <= index {
