@@ -21,7 +21,7 @@ public typealias Timestamp = Int64
 
 public typealias ArrowFields = [ArrowField]
 
-public struct UnionField: Codable, Sendable, Equatable {
+public struct UnionField: Codable, Sendable, Equatable, Hashable {
   public let typeId: Int8
   public let field: ArrowField
 
@@ -55,7 +55,7 @@ public struct UnionField: Codable, Sendable, Equatable {
 ///
 /// [`Schema.fbs`]: https://github.com/apache/arrow/blob/main/format/Schema.fbs
 /// [the physical memory layout of Apache Arrow]: https://arrow.apache.org/docs/format/Columnar.html#physical-memory-layout
-public indirect enum ArrowType: Codable, Sendable, Equatable {
+public indirect enum ArrowType: Codable, Sendable, Equatable, Hashable {
   /// Null type
   case null  // TODO: Implement this
   /// A boolean datatype representing the values `true` and `false`.

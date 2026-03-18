@@ -23,7 +23,7 @@
 /// * `metadata`: a map of key-value pairs containing additional custom metadata
 ///
 /// Arrow Extension types, are encoded in `ArrowField`s metadata.
-public struct ArrowField: Codable, Sendable {
+public struct ArrowField: Codable, Sendable, Hashable {
   public var name: String
   public var type: ArrowType
 
