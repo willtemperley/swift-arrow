@@ -81,8 +81,8 @@ public class ArrowTable {
       return try makeTypedColumn(field, arrays, type: UInt32.self)
     case .uint64:
       return try makeTypedColumn(field, arrays, type: UInt64.self)
-    case .float16:
-      return try makeTypedColumn(field, arrays, type: Float16.self)
+//    case .float16:
+//      return try makeTypedColumn(field, arrays, type: Float16.self)
     case .float32:
       return try makeTypedColumn(field, arrays, type: Float.self)
     case .float64:
