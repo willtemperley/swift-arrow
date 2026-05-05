@@ -1,4 +1,4 @@
-// swift-tools-version: 6.2
+// swift-tools-version: 6.3
 
 // Copyright 2025 The Apache Software Foundation
 // Copyright 2025 The swift-arrow contributors
@@ -70,6 +70,7 @@ let package = Package(
         "ArrowC",
         .product(name: "FlatBuffers", package: "flatbuffers"),
         .product(name: "Atomics", package: "swift-atomics"),
+        .product(name: "BinaryParsing", package: "swift-binary-parsing"),
       ],
       swiftSettings: [
         // build: .unsafeFlags(["-warnings-as-errors"])

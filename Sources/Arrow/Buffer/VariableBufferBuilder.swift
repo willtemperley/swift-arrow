@@ -72,7 +72,7 @@ final class VariableLengthTypeBufferBuilder<T> where T: VariableLength {
   /// Memory ownership is transferred to the returned `VariableBuffer`.  Any memory held is
   /// deallocated.
   /// - Returns: the completed `NullBuffer` with capacity shrunk to a multiple of 64 bytes.
-  func finish() -> VariableLengthTypeBuffer<T> {
+  func finish() -> VariableLengthBuffer<T> {
     precondition(ownsMemory, "Buffer already finished.")
     ownsMemory = false
     let newCapacity = (length + 63) & ~63
@@ -82,7 +82,7 @@ final class VariableLengthTypeBufferBuilder<T> where T: VariableLength {
     ).bindMemory(to: UInt8.self, capacity: newCapacity)
     newBuffer.initialize(from: buffer, count: length)
     buffer.deallocate()
-    return VariableLengthTypeBuffer(
+    return VariableLengthBuffer(
       length: length,
       capacity: newCapacity,
       ownsMemory: true,

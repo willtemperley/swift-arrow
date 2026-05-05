@@ -53,7 +53,7 @@ public protocol VariableLengthBufferProtocol<ElementType>: ArrowBufferProtocol {
 }
 
 /// A buffer containing values with variable length, used in variable length type Arrow arrays.
-public final class VariableLengthTypeBuffer<T: VariableLength>:
+public final class VariableLengthBuffer<T: VariableLength>:
   VariableLengthBufferProtocol, ArrowBufferUInt8, @unchecked Sendable
 {
   public typealias ElementType = T

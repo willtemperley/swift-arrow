@@ -101,8 +101,9 @@ struct ArrowTestingGold {
     let (testFile, testCase) = try loadTestCase(
       name: name, fileExtension: "stream")
     let arrowReader = ArrowStreamReader()
-    let data = try Data(contentsOf: testFile)
-    let recordBatches = try arrowReader.read(data: data)
+    //    let data = try Data(contentsOf: testFile)
+    let file = try MappedFile(path: testFile.path)
+    let recordBatches = try arrowReader.read(data: file)
     let arrowSchema = arrowReader.arrowSchema!
     try validateReadResults(
       testCase: testCase, recordBatches: recordBatches, arrowSchema: arrowSchema
@@ -197,7 +198,12 @@ struct ArrowTestingGold {
     let ipcData = arrowWriter.data
     #endif
 
-    let testReader = try ArrowReader(data: ipcData)
+    let tempPath = NSTemporaryDirectory() + "test_\(UUID().uuidString).arrow"
+    FileManager.default.createFile(atPath: tempPath, contents: ipcData)
+    defer { try? FileManager.default.removeItem(atPath: tempPath) }
+
+    let mappedFile = try MappedFile(path: tempPath)
+    let testReader = try ArrowReader(data: mappedFile)
     let (arrowSchemaRead, recordBatchesRead) = try testReader.read()
 
     for recordBatch in recordBatchesRead {

@@ -161,7 +161,7 @@ public struct ArrowArrayNumericExistential<ItemType: Numeric & BitwiseCopyable>:
 
 /// An Arrow array of fixed-width types.
 public struct ArrowArrayNumeric<ItemType: Numeric & BitwiseCopyable>:
-  ArrowArrayProtocol
+  ArrowArrayProtocol, @unchecked Sendable
 {
   public let offset: Int
   public let length: Int
@@ -171,6 +171,7 @@ public struct ArrowArrayNumeric<ItemType: Numeric & BitwiseCopyable>:
 
   let nullBuffer: NullBuffer
   private let valueBuffer: FixedWidthBufferStorage<ItemType>
+  private let pointer: UnsafePointer<ItemType>
 
   // Initialize from concrete buffer type
   public init(
@@ -182,6 +183,11 @@ public struct ArrowArrayNumeric<ItemType: Numeric & BitwiseCopyable>:
     self.offset = offset
     self.length = length
     self.nullBuffer = nullBuffer
+
+    switch valueBuffer {
+    case .allocated(let b): self.pointer = b.buffer
+    case .ipc(let b): self.pointer = b.pointer
+    }
     self.valueBuffer = valueBuffer
   }
 

@@ -27,25 +27,30 @@ let continuationMarker = UInt32(0xFFFF_FFFF)
 /// around the Arrow streaming format.
 public struct ArrowReader {
 
-  let data: Data
+  let data: MappedFile
 
   /// Create an `ArrowReader` from a URL.
   ///
   /// - Parameter url: the file to read from.
   /// - Throws: a ParsingError if the file could not be read.
   public init(url: URL) throws {
-    self.data = try Data(contentsOf: url, options: .mappedIfSafe)
+    self.data = try MappedFile(path: url.path)
     try validateFileMarker()
   }
 
-  /// Create an `ArrowReader` from Arrow IPC data.
-  ///
-  /// - Parameter data: Arrow IPC format data (file or stream format).
-  /// - Throws: a ParsingError if the data is not valid Arrow IPC format.
-  public init(data: Data) throws {
+  public init(data: MappedFile) throws {
     self.data = data
     try validateFileMarker()
   }
+
+  //  /// Create an `ArrowReader` from Arrow IPC data.
+  //  ///
+  //  /// - Parameter data: Arrow IPC format data (file or stream format).
+  //  /// - Throws: a ParsingError if the data is not valid Arrow IPC format.
+  //  public init(data: Data) throws {
+  //    self.data = data
+  //    try validateFileMarker()
+  //  }
 
   private func validateFileMarker() throws {
     try data.withParserSpan { input in
@@ -113,7 +118,7 @@ public struct ArrowReader {
       }
 
       let dictBatch = try Self.loadRecordBatch(
-        data: self.data,
+        file: self.data,
         arrowSchema: arrowSchema,
         rbMessage: rbMessage,
         offset: bodyOffset
@@ -157,7 +162,7 @@ public struct ArrowReader {
 
       // MARK: Load batch.
       let recordBatch = try Self.loadRecordBatch(
-        data: self.data,
+        file: self.data,
         arrowSchema: arrowSchema,
         rbMessage: rbMessage,
         offset: offset,
@@ -169,7 +174,7 @@ public struct ArrowReader {
   }
 
   static func loadRecordBatch(
-    data: Data,
+    file: MappedFile,
     arrowSchema: ArrowSchema,
     rbMessage: FRecordBatch,
     offset: Int64
@@ -184,7 +189,7 @@ public struct ArrowReader {
     for field in arrowSchema.fields {
 
       let array = try Self.loadField(
-        data: data,
+        file: file,
         rbMessage: rbMessage,
         field: field,
         offset: offset,
@@ -199,7 +204,7 @@ public struct ArrowReader {
   }
 
   static func loadField(
-    data: Data,
+    file: MappedFile,
     rbMessage: FRecordBatch,
     field: ArrowField,
     offset: Int64,
@@ -217,7 +222,7 @@ public struct ArrowReader {
       message: rbMessage,
       index: &bufferIndex,
       offset: offset,
-      data: data
+      file: file
     )
 
     // MARK: Load arrays
@@ -239,7 +244,7 @@ public struct ArrowReader {
     let arrowType = field.type
     if arrowType == .boolean {
       let buffer1 = try nextBuffer(
-        message: rbMessage, index: &bufferIndex, offset: offset, data: data)
+        message: rbMessage, index: &bufferIndex, offset: offset, file: file)
       let valueBuffer = NullBufferIPC(
         buffer: buffer1, valueCount: length, nullCount: nullCount)
       return ArrowArrayBoolean(
@@ -247,7 +252,7 @@ public struct ArrowReader {
         valueBuffer: valueBuffer)
     } else if arrowType.isNumeric {
       let buffer1 = try nextBuffer(
-        message: rbMessage, index: &bufferIndex, offset: offset, data: data)
+        message: rbMessage, index: &bufferIndex, offset: offset, file: file)
       switch arrowType {
       case .float32:
         return makeFixedArray(
@@ -294,7 +299,7 @@ public struct ArrowReader {
       }
     } else if arrowType.isTemporal {
       let buffer1 = try nextBuffer(
-        message: rbMessage, index: &bufferIndex, offset: offset, data: data)
+        message: rbMessage, index: &bufferIndex, offset: offset, file: file)
       switch arrowType {
       case .date32:
         return makeFixedArray(
@@ -329,11 +334,11 @@ public struct ArrowReader {
       }
     } else if arrowType.isVariable {
       let buffer1 = try nextBuffer(
-        message: rbMessage, index: &bufferIndex, offset: offset, data: data)
+        message: rbMessage, index: &bufferIndex, offset: offset, file: file)
       let buffer2 = try nextBuffer(
-        message: rbMessage, index: &bufferIndex, offset: offset, data: data)
+        message: rbMessage, index: &bufferIndex, offset: offset, file: file)
       if arrowType == .utf8 {
-        let offsetsBufferTyped = FixedWidthBufferIPC<Int32>(
+        let offsetsBufferTyped = FixedWidthBufferIPC2<Int32>(
           buffer: buffer1
         )
         let valueBufferTyped = VariableLengthBufferIPC<String, Int32>(
@@ -346,7 +351,7 @@ public struct ArrowReader {
           valueBuffer: valueBufferTyped
         )
       } else if arrowType == .binary {
-        let offsetsBufferTyped = FixedWidthBufferIPC<Int32>(
+        let offsetsBufferTyped = FixedWidthBufferIPC2<Int32>(
           buffer: buffer1
         )
         let valueBufferTyped = VariableLengthBufferIPC<Data, Int32>(
@@ -358,7 +363,7 @@ public struct ArrowReader {
           valueBuffer: valueBufferTyped
         )
       } else if arrowType == .largeBinary {
-        let offsetsBufferTyped = FixedWidthBufferIPC<Int64>(
+        let offsetsBufferTyped = FixedWidthBufferIPC2<Int64>(
           buffer: buffer1
         )
         let valueBufferTyped = VariableLengthBufferIPC<Data, Int64>(
@@ -370,7 +375,7 @@ public struct ArrowReader {
           valueBuffer: valueBufferTyped
         )
       } else if arrowType == .largeUtf8 {
-        let offsetsBufferTyped = FixedWidthBufferIPC<Int64>(
+        let offsetsBufferTyped = FixedWidthBufferIPC2<Int64>(
           buffer: buffer1
         )
         let valueBufferTyped = VariableLengthBufferIPC<String, Int64>(
@@ -389,9 +394,9 @@ public struct ArrowReader {
         message: rbMessage,
         index: &bufferIndex,
         offset: offset,
-        data: data
+        file: file
       )
-      let viewsBufferTyped = FixedWidthBufferIPC<BinaryView>(
+      let viewsBufferTyped = FixedWidthBufferIPC2<BinaryView>(
         buffer: viewsBuffer)
 
       guard
@@ -410,7 +415,7 @@ public struct ArrowReader {
             message: rbMessage,
             index: &bufferIndex,
             offset: offset,
-            data: data
+            file: file
           )
           let dataBufferTyped = VariableLengthBufferIPC<Data, Int32>(
             buffer: dataBuffer)
@@ -430,7 +435,7 @@ public struct ArrowReader {
             message: rbMessage,
             index: &bufferIndex,
             offset: offset,
-            data: data
+            file: file
           )
           let dataBufferTyped = VariableLengthBufferIPC<String, Int32>(
             buffer: dataBuffer
@@ -455,7 +460,8 @@ public struct ArrowReader {
           offsetType: Int32.self,
           rbMessage: rbMessage,
           bufferIndex: &bufferIndex,
-          offset: offset, data: data,
+          offset: offset,
+          file: file,
           childField: childField,
           nodeIndex: &nodeIndex,
           variadicBufferIndex: &variadicBufferIndex,
@@ -467,7 +473,8 @@ public struct ArrowReader {
           offsetType: Int64.self,
           rbMessage: rbMessage,
           bufferIndex: &bufferIndex,
-          offset: offset, data: data,
+          offset: offset,
+          file: file,
           childField: childField,
           nodeIndex: &nodeIndex,
           variadicBufferIndex: &variadicBufferIndex,
@@ -476,7 +483,7 @@ public struct ArrowReader {
         )
       case .fixedSizeList(let field, let listSize):
         let array: AnyArrowArrayProtocol = try loadField(
-          data: data,
+          file: file,
           rbMessage: rbMessage,
           field: field,
           offset: offset,
@@ -494,7 +501,7 @@ public struct ArrowReader {
         var arrays: [(String, AnyArrowArrayProtocol)] = []
         for field in fields {
           let array = try loadField(
-            data: data,
+            file: file,
             rbMessage: rbMessage,
             field: field,
             offset: offset,
@@ -516,7 +523,7 @@ public struct ArrowReader {
       // MARK: Unclassifiable types.
       if case .fixedSizeBinary(let byteWidth) = arrowType {
         let valueBuffer = try nextBuffer(
-          message: rbMessage, index: &bufferIndex, offset: offset, data: data)
+          message: rbMessage, index: &bufferIndex, offset: offset, file: file)
         let valueBufferTyped = VariableLengthBufferIPC<Data, Int32>(
           buffer: valueBuffer)
         return ArrowArrayFixedSizeBinary(
@@ -534,8 +541,8 @@ public struct ArrowReader {
     message: FRecordBatch,
     index: inout Int32,
     offset: Int64,
-    data: Data
-  ) throws(ArrowError) -> FileDataBuffer {
+    file: MappedFile
+  ) throws(ArrowError) -> FileDataBuffer2 {
     guard index < message.buffers.count,
       let buffer = message.buffers[ifInBounds: index]
     else {
@@ -548,7 +555,7 @@ public struct ArrowReader {
     let startOffset = offset + buffer.offset
     let endOffset = startOffset + buffer.length
     let range = Int(startOffset)..<Int(endOffset)
-    let fileDataBuffer = FileDataBuffer(data: data, range: range)
+    let fileDataBuffer = FileDataBuffer2(file: file, range: range)
     return fileDataBuffer
   }
 
@@ -556,9 +563,9 @@ public struct ArrowReader {
     length: Int,
     elementType: T.Type,
     nullBuffer: NullBuffer,
-    buffer: FileDataBuffer
+    buffer: FileDataBuffer2
   ) -> ArrowArrayNumeric<T> {
-    let fixedBuffer = FixedWidthBufferIPC<T>(
+    let fixedBuffer = FixedWidthBufferIPC2<T>(
       buffer: buffer
     )
     return ArrowArrayNumeric(
@@ -575,7 +582,7 @@ public struct ArrowReader {
     rbMessage: FRecordBatch,
     bufferIndex: inout Int32,
     offset: Int64,
-    data: Data,
+    file: MappedFile,
     childField: ArrowField,
     nodeIndex: inout Int32,
     variadicBufferIndex: inout Int32,
@@ -583,10 +590,10 @@ public struct ArrowReader {
     nullBuffer: any NullBuffer
   ) throws(ArrowError) -> any AnyArrowArrayProtocol {
     let buffer1 = try nextBuffer(
-      message: rbMessage, index: &bufferIndex, offset: offset, data: data)
-    let offsetsBuffer = FixedWidthBufferIPC<T>(buffer: buffer1)
+      message: rbMessage, index: &bufferIndex, offset: offset, file: file)
+    let offsetsBuffer = FixedWidthBufferIPC2<T>(buffer: buffer1)
     let array: AnyArrowArrayProtocol = try loadField(
-      data: data,
+      file: file,
       rbMessage: rbMessage,
       field: childField,
       offset: offset,

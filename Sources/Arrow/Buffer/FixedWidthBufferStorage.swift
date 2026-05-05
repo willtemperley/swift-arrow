@@ -16,7 +16,7 @@ public enum FixedWidthBufferStorage<T>: FixedWidthBufferProtocol
 where T: BitwiseCopyable {
 
   case allocated(FixedWidthBuffer<T>)
-  case ipc(FixedWidthBufferIPC<T>)
+  case ipc(FixedWidthBufferIPC2<T>)
 
   public var length: Int {
     switch self {

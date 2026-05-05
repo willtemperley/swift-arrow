@@ -94,12 +94,12 @@ private let mmapArray = MmapArrayView(
 
 private let swiftArray: [UInt64?] = (0..<UInt64(count)).map { Optional($0) }
 
-private let ipcBuffer: FixedWidthBufferIPC<UInt64> = {
-  let data = Data(
-    bytes: storage.pointer, count: count * MemoryLayout<UInt64>.stride)
-  let fdb = FileDataBuffer(data: data, range: 0..<data.count)
-  return FixedWidthBufferIPC(buffer: fdb)
-}()
+//private let ipcBuffer: FixedWidthBufferIPC<UInt64> = {
+//  let data = Data(
+//    bytes: storage.pointer, count: count * MemoryLayout<UInt64>.stride)
+//  let fdb = FileDataBuffer(data: data, range: 0..<data.count)
+//  return FixedWidthBufferIPC(buffer: fdb)
+//}()
 
 private let mmapBuffer: FixedWidthBufferIPC2<UInt64> = {
   let byteCount = count * MemoryLayout<UInt64>.stride
@@ -113,17 +113,17 @@ private let mmapBuffer: FixedWidthBufferIPC2<UInt64> = {
   return FixedWidthBufferIPC2(buffer: fdb)
 }()
 
-private let enumArrayIPC = ArrowArrayNumeric<UInt64>(
-  length: count,
-  nullBuffer: nullBuffer,
-  valueBuffer: .ipc(ipcBuffer)
-)
+//private let enumArrayIPC = ArrowArrayNumeric<UInt64>(
+//  length: count,
+//  nullBuffer: nullBuffer,
+//  valueBuffer: .ipc(ipcBuffer)
+//)
 
-private let existentialArrayIPC = ArrowArrayNumericExistential<UInt64>(
-  length: count,
-  nullBuffer: nullBuffer,
-  valueBuffer: ipcBuffer
-)
+//private let existentialArrayIPC = ArrowArrayNumericExistential<UInt64>(
+//  length: count,
+//  nullBuffer: nullBuffer,
+//  valueBuffer: ipcBuffer
+//)
 
 // MARK: - Benchmarks
 
@@ -143,19 +143,19 @@ let benchmarks: @Sendable () -> Void = {
     blackHole(sum)
   }
 
-  Benchmark(
-    "Subscript — Existential dispatch (IPC)",
-    configuration: .init(
-      metrics: [.cpuTotal, .throughput, .peakMemoryResident],
-      maxDuration: .seconds(10)
-    )
-  ) { benchmark in
-    var sum: UInt64 = 0
-    for i in 0..<count {
-      sum &+= existentialArrayIPC[i] ?? 0
-    }
-    blackHole(sum)
-  }
+  //  Benchmark(
+  //    "Subscript — Existential dispatch (IPC)",
+  //    configuration: .init(
+  //      metrics: [.cpuTotal, .throughput, .peakMemoryResident],
+  //      maxDuration: .seconds(10)
+  //    )
+  //  ) { benchmark in
+  //    var sum: UInt64 = 0
+  //    for i in 0..<count {
+  //      sum &+= existentialArrayIPC[i] ?? 0
+  //    }
+  //    blackHole(sum)
+  //  }
 
   Benchmark(
     "Subscript — Enum dispatch",
@@ -171,19 +171,19 @@ let benchmarks: @Sendable () -> Void = {
     blackHole(sum)
   }
 
-  Benchmark(
-    "Subscript — Enum dispatch (IPC)",
-    configuration: .init(
-      metrics: [.cpuTotal, .throughput, .peakMemoryResident],
-      maxDuration: .seconds(10)
-    )
-  ) { benchmark in
-    var sum: UInt64 = 0
-    for i in 0..<count {
-      sum &+= enumArrayIPC[i] ?? 0
-    }
-    blackHole(sum)
-  }
+  //  Benchmark(
+  //    "Subscript — Enum dispatch (IPC)",
+  //    configuration: .init(
+  //      metrics: [.cpuTotal, .throughput, .peakMemoryResident],
+  //      maxDuration: .seconds(10)
+  //    )
+  //  ) { benchmark in
+  //    var sum: UInt64 = 0
+  //    for i in 0..<count {
+  //      sum &+= enumArrayIPC[i] ?? 0
+  //    }
+  //    blackHole(sum)
+  //  }
 
   Benchmark(
     "Subscript — mmap (IPC)",

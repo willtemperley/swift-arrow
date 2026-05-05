@@ -19,7 +19,7 @@ import Foundation
 class ArrowStreamReader {
   var arrowSchema: ArrowSchema?
 
-  func readMessage(data: Data, offset: inout Int64) throws -> FMessage? {
+  func readMessage(data: MappedFile, offset: inout Int64) throws -> FMessage? {
 
     let message: FMessage? = try data.withParserSpan { input in
       try input.seek(toAbsoluteOffset: offset)
@@ -41,7 +41,7 @@ class ArrowStreamReader {
     return message
   }
 
-  func read(data: Data) throws -> [RecordBatch] {
+  func read(data: MappedFile) throws -> [RecordBatch] {
     var offset: Int64 = 0
     var recordBatches: [RecordBatch] = []
     while true {
@@ -63,7 +63,7 @@ class ArrowStreamReader {
           throw ArrowError(.invalid("ArrowSchema not available."))
         }
         let recordBatch = try ArrowReader.loadRecordBatch(
-          data: data,
+          file: data,
           arrowSchema: arrowSchema,
           rbMessage: rbMessage,
           offset: offset,
