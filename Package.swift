@@ -45,11 +45,15 @@ let package = Package(
     ),
     .package(
       url: "https://github.com/apple/swift-binary-parsing.git",
-      from: "0.0.1"
+      exact: "0.0.2"
     ),
     .package(
       url: "https://github.com/swiftlang/swift-subprocess.git",
-      branch: "main"
+      .upToNextMinor(from: "0.4.0")
+    ),
+    .package(
+      url: "https://github.com/ordo-one/package-benchmark",
+      from: "1.29.0"
     ),
   ],
   targets: [
@@ -130,6 +134,20 @@ let package = Package(
       ],
       swiftSettings: [
         // build: .unsafeFlags(["-warnings-as-errors"])
+      ]
+    ),
+
+    .executableTarget(
+      name: "ArrowBenchmarks",
+      dependencies: [
+        "Arrow",
+        "ArrowIPC",
+        .product(name: "Benchmark", package: "package-benchmark"),
+      ],
+      path: "Benchmarks/ArrowBenchmarks",
+      swiftSettings: [.unsafeFlags(["-cross-module-optimization"])],
+      plugins: [
+        .plugin(name: "BenchmarkPlugin", package: "package-benchmark")
       ]
     ),
   ]

@@ -21,18 +21,6 @@ import Foundation
 let fileMarker: [UInt8] = .init(Data("ARROW1".utf8))
 let continuationMarker = UInt32(0xFFFF_FFFF)
 
-/// A view over `Data` which backs an Arrow buffer.
-struct FileDataBuffer {
-  let data: Data
-  let range: Range<Int>
-
-  init(data: Data, range: Range<Int>) {
-    self.data = data
-    self.range = range
-    precondition(range.lowerBound <= range.upperBound)
-  }
-}
-
 /// A reader for the Arrow file format.
 ///
 /// The Arrow file format supports  random access. The Arrow file format contains a header and footer
@@ -576,7 +564,7 @@ public struct ArrowReader {
     return ArrowArrayNumeric(
       length: length,
       nullBuffer: nullBuffer,
-      valueBuffer: fixedBuffer
+      valueBuffer: .ipc(fixedBuffer)
     )
   }
 

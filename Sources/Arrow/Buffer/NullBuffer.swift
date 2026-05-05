@@ -30,6 +30,7 @@ public struct AllValidNullBuffer: NullBuffer, ArrowBufferEmpty {
     self.valueCount = valueCount
   }
 
+  @inlinable
   public func isSet(_ bit: Int) -> Bool {
     precondition(bit < valueCount)
     return true

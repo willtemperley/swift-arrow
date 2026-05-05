@@ -26,8 +26,10 @@ public class ArrowTable {
   }
 
   /// Create an ArrowTable from a 'RecordBatch' list.
-  /// - Parameter recordBatches: The record batches.
-  /// - Parameter schema: An optional schema, defaulting to the record batch schema.
+  ///
+  /// - Parameters:
+  /// -  recordBatches: The record batches.
+  /// -  schema: An optional schema, defaulting to the record batch schema.
   /// - Returns: An `ArrowResult` holding an `ArrowTable` on success.
   /// - Throws: an `ArrowError` if arrays have no elements or if elements have mismatched types.
   public static func from(
@@ -81,8 +83,8 @@ public class ArrowTable {
       return try makeTypedColumn(field, arrays, type: UInt32.self)
     case .uint64:
       return try makeTypedColumn(field, arrays, type: UInt64.self)
-//    case .float16:
-//      return try makeTypedColumn(field, arrays, type: Float16.self)
+    //    case .float16:
+    //      return try makeTypedColumn(field, arrays, type: Float16.self)
     case .float32:
       return try makeTypedColumn(field, arrays, type: Float.self)
     case .float64:

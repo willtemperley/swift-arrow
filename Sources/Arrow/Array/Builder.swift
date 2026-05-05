@@ -111,7 +111,7 @@ public class ArrayBuilderNumeric<T: Numeric & BitwiseCopyable>:
       offset: 0,
       length: length,
       nullBuffer: nullBuffer,
-      valueBuffer: valueBuffer
+      valueBuffer: .allocated(valueBuffer)
     )
   }
 }

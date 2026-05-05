@@ -114,8 +114,8 @@ public struct ArrowArrayBoolean: ArrowArrayProtocol {
   }
 }
 
-/// An Arrow array of fixed-width types.
-public struct ArrowArrayNumeric<ItemType: Numeric & BitwiseCopyable>:
+/// An Arrow array of fixed-width types. Uses existential types which are much slower.
+public struct ArrowArrayNumericExistential<ItemType: Numeric & BitwiseCopyable>:
   ArrowArrayProtocol
 {
   public let offset: Int
@@ -134,6 +134,51 @@ public struct ArrowArrayNumeric<ItemType: Numeric & BitwiseCopyable>:
     nullBuffer: NullBuffer,
     valueBuffer: ValueBuffer
   ) where ValueBuffer.ElementType == ItemType {
+    self.offset = offset
+    self.length = length
+    self.nullBuffer = nullBuffer
+    self.valueBuffer = valueBuffer
+  }
+
+  public subscript(index: Int) -> ItemType? {
+    precondition(index >= 0 && index < length, "Invalid index.")
+    let offsetIndex = self.offset + index
+    if !self.nullBuffer.isSet(offsetIndex) {
+      return nil
+    }
+    return valueBuffer[offsetIndex]
+  }
+
+  public func slice(offset: Int, length: Int) -> Self {
+    .init(
+      offset: offset,
+      length: length,
+      nullBuffer: nullBuffer,
+      valueBuffer: valueBuffer
+    )
+  }
+}
+
+/// An Arrow array of fixed-width types.
+public struct ArrowArrayNumeric<ItemType: Numeric & BitwiseCopyable>:
+  ArrowArrayProtocol
+{
+  public let offset: Int
+  public let length: Int
+  public var nullCount: Int { nullBuffer.nullCount }
+  public var bufferSizes: [Int] { [nullBuffer.length, valueBuffer.length] }
+  public var buffers: [ArrowBufferProtocol] { [nullBuffer, valueBuffer] }
+
+  let nullBuffer: NullBuffer
+  private let valueBuffer: FixedWidthBufferStorage<ItemType>
+
+  // Initialize from concrete buffer type
+  public init(
+    offset: Int = 0,
+    length: Int,
+    nullBuffer: NullBuffer,
+    valueBuffer: FixedWidthBufferStorage<ItemType>
+  ) {
     self.offset = offset
     self.length = length
     self.nullBuffer = nullBuffer
