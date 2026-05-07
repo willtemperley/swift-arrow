@@ -256,15 +256,81 @@ public struct ArrowArrayFixedSizeBinary: ArrowArrayProtocol {
 }
 
 /// An Arrow array of variable-length types.
+//public struct ArrowArrayVariable<
+//  ItemType: VariableLength,
+//  OffsetType: FixedWidthInteger & SignedInteger
+//>: ArrowArrayProtocol {
+//  public let offset: Int
+//  public let length: Int
+//  private let nullBuffer: NullBuffer
+//  private let offsetsBuffer: any FixedWidthBufferProtocol<OffsetType>
+//  private let valueBuffer: any VariableLengthBufferProtocol<ItemType>
+//
+//  public var bufferSizes: [Int] {
+//    [nullBuffer.length, offsetsBuffer.length, valueBuffer.length]
+//  }
+//
+//  public var buffers: [ArrowBufferProtocol] {
+//    [nullBuffer, offsetsBuffer, valueBuffer]
+//  }
+//
+//  public var nullCount: Int { nullBuffer.nullCount }
+//
+//  public init<
+//    Offsets: FixedWidthBufferProtocol<OffsetType>,
+//    Values: VariableLengthBufferProtocol
+//  >(
+//    offset: Int = 0,
+//    length: Int,
+//    nullBuffer: NullBuffer,
+//    offsetsBuffer: Offsets,
+//    valueBuffer: Values
+//  ) where Values.ElementType == ItemType {
+//    self.offset = offset
+//    self.length = length
+//    self.nullBuffer = nullBuffer
+//    self.offsetsBuffer = offsetsBuffer
+//    self.valueBuffer = valueBuffer
+//  }
+//
+//  public subscript(index: Int) -> ItemType? {
+//    let offsetIndex = self.offset + index
+//    guard self.nullBuffer.isSet(offsetIndex) else {
+//      return nil
+//    }
+//
+//    // Use runtime dispatch through the existential
+//    let startOffset = offsetsBuffer[offsetIndex]
+//    let endOffset = offsetsBuffer[offsetIndex + 1]
+//
+//    precondition(endOffset >= startOffset, "Corrupted Arrow data")
+//    return valueBuffer.loadVariable(
+//      at: Int(startOffset),
+//      arrayLength: Int(endOffset - startOffset)
+//    )
+//  }
+//
+//  public func slice(offset: Int, length: Int) -> Self {
+//    .init(
+//      offset: offset,
+//      length: length,
+//      nullBuffer: nullBuffer,
+//      offsetsBuffer: offsetsBuffer,
+//      valueBuffer: valueBuffer
+//    )
+//  }
+//}
+
 public struct ArrowArrayVariable<
   ItemType: VariableLength,
-  OffsetType: FixedWidthInteger & SignedInteger
->: ArrowArrayProtocol {
+  OffsetType: FixedWidthInteger & SignedInteger & BitwiseCopyable
+>: ArrowArrayProtocol, @unchecked Sendable {
   public let offset: Int
   public let length: Int
   private let nullBuffer: NullBuffer
-  private let offsetsBuffer: any FixedWidthBufferProtocol<OffsetType>
-  private let valueBuffer: any VariableLengthBufferProtocol<ItemType>
+  private let offsetsPointer: UnsafePointer<OffsetType>
+  private let offsetsBuffer: FixedWidthBufferStorage<OffsetType>
+  private let valueBuffer: VariableLengthBufferStorage<ItemType, OffsetType>
 
   public var bufferSizes: [Int] {
     [nullBuffer.length, offsetsBuffer.length, valueBuffer.length]
@@ -276,21 +342,23 @@ public struct ArrowArrayVariable<
 
   public var nullCount: Int { nullBuffer.nullCount }
 
-  public init<
-    Offsets: FixedWidthBufferProtocol<OffsetType>,
-    Values: VariableLengthBufferProtocol
-  >(
+  public init(
     offset: Int = 0,
     length: Int,
     nullBuffer: NullBuffer,
-    offsetsBuffer: Offsets,
-    valueBuffer: Values
-  ) where Values.ElementType == ItemType {
+    offsetsBuffer: FixedWidthBufferStorage<OffsetType>,
+    valueBuffer: VariableLengthBufferStorage<ItemType, OffsetType>
+  ) {
     self.offset = offset
     self.length = length
     self.nullBuffer = nullBuffer
     self.offsetsBuffer = offsetsBuffer
     self.valueBuffer = valueBuffer
+
+    switch offsetsBuffer {
+    case .allocated(let b): self.offsetsPointer = b.buffer
+    case .ipc(let b): self.offsetsPointer = b.pointer
+    }
   }
 
   public subscript(index: Int) -> ItemType? {
@@ -299,11 +367,10 @@ public struct ArrowArrayVariable<
       return nil
     }
 
-    // Use runtime dispatch through the existential
-    let startOffset = offsetsBuffer[offsetIndex]
-    let endOffset = offsetsBuffer[offsetIndex + 1]
+    let startOffset = offsetsPointer[offsetIndex]
+    let endOffset = offsetsPointer[offsetIndex + 1]
 
-    precondition(endOffset >= startOffset, "Corrupted Arrow data")
+    precondition(endOffset >= startOffset, "Corrupted Arrow data/")
     return valueBuffer.loadVariable(
       at: Int(startOffset),
       arrayLength: Int(endOffset - startOffset)

@@ -14,19 +14,8 @@
 
 import Foundation
 
-/// A view over `Data` which backs an Arrow buffer.
+/// A view over `MappedFile` which backs an Arrow buffer.
 public struct FileDataBuffer: Sendable {
-  let data: Data
-  let range: Range<Int>
-
-  public init(data: Data, range: Range<Int>) {
-    self.data = data
-    self.range = range
-    precondition(range.lowerBound <= range.upperBound)
-  }
-}
-
-public struct FileDataBuffer2: Sendable {
   let file: MappedFile
   let range: Range<Int>
 

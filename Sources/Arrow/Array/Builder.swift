@@ -173,7 +173,7 @@ public class ArrayBuilderFixedSizedBinary:
 /// A builder for Arrow arrays holding variable length types.
 public class ArrayBuilderVariableLength<
   Element: VariableLength,
-  OffsetType: FixedWidthInteger & SignedInteger
+  OffsetType: FixedWidthInteger & SignedInteger & BitwiseCopyable
 >: AnyArrayBuilder {
 
   public typealias ArrayType = ArrowArrayVariable<Element, OffsetType>
@@ -219,8 +219,8 @@ public class ArrayBuilderVariableLength<
     ArrayType(
       length: length,
       nullBuffer: nullBuilder.finish(),
-      offsetsBuffer: offsetsBuilder.finish(),
-      valueBuffer: valueBuilder.finish()
+      offsetsBuffer: .allocated(offsetsBuilder.finish()),
+      valueBuffer: .allocated(valueBuilder.finish())
     )
   }
 }

@@ -109,7 +109,7 @@ private let mmapBuffer: FixedWidthBufferIPC2<UInt64> = {
   let data = Data(bytes: storage.pointer, count: byteCount)
   FileManager.default.createFile(atPath: path, contents: data)
   let file = try! MappedFile(path: path)
-  let fdb = FileDataBuffer2(file: file, range: 0..<byteCount)
+  let fdb = FileDataBuffer(file: file, range: 0..<byteCount)
   return FixedWidthBufferIPC2(buffer: fdb)
 }()
 

@@ -14,7 +14,7 @@
 
 /// An Arrow buffer backed by file data.
 internal protocol ArrowBufferIPC: ArrowBufferProtocol {
-  var buffer: FileDataBuffer2 { get }
+  var buffer: FileDataBuffer { get }
 }
 
 extension ArrowBufferIPC {
@@ -31,14 +31,14 @@ extension ArrowBufferIPC {
 
 /// A `Data` backed buffer for null bitmaps and boolean arrays.
 public struct NullBufferIPC: NullBuffer, ArrowBufferIPC, @unchecked Sendable {
-  let buffer: FileDataBuffer2
+  let buffer: FileDataBuffer
   public var valueCount: Int
   public let nullCount: Int
   private let base: UnsafePointer<UInt8>
 
   public var length: Int { (valueCount + 7) / 8 }
 
-  public init(buffer: FileDataBuffer2, valueCount: Int, nullCount: Int) {
+  public init(buffer: FileDataBuffer, valueCount: Int, nullCount: Int) {
     self.buffer = buffer
     self.valueCount = valueCount
     self.nullCount = nullCount
@@ -52,34 +52,14 @@ public struct NullBufferIPC: NullBuffer, ArrowBufferIPC, @unchecked Sendable {
   }
 }
 
-/// A `Data` backed buffer for fixed-width types.
-//public struct FixedWidthBufferIPC<Element>: FixedWidthBufferProtocol,
-//  ArrowBufferIPC
-//where Element: BitwiseCopyable {
-//  public typealias ElementType = Element
-//  let buffer: FileDataBuffer
-//  public var length: Int { buffer.range.count }
-//
-//  public init(buffer: FileDataBuffer) {
-//    self.buffer = buffer
-//  }
-//
-//  public subscript(index: Int) -> Element {
-//    buffer.data.withUnsafeBytes { rawBuffer in
-//      let sub = rawBuffer[buffer.range]
-//      let span = Span<Element>(_unsafeBytes: sub)
-//      return span[index]
-//    }
-//  }
-//}
-
+/// A `MemoryMapped` backed buffer for fixed-width types.
 public struct FixedWidthBufferIPC2<Element: BitwiseCopyable>:
   @unchecked Sendable, FixedWidthBufferProtocol
 {
-  let buffer: FileDataBuffer2
+  let buffer: FileDataBuffer
   let pointer: UnsafePointer<Element>
 
-  public init(buffer: FileDataBuffer2) {
+  public init(buffer: FileDataBuffer) {
     self.buffer = buffer
     self.pointer = buffer.basePointer.assumingMemoryBound(to: Element.self)
   }
@@ -103,15 +83,15 @@ public struct FixedWidthBufferIPC2<Element: BitwiseCopyable>:
 
 /// A `Data` backed buffer for variable-length types.
 public struct VariableLengthBufferIPC<
-  Element: VariableLength, OffsetType: FixedWidthInteger
+  Element: VariableLength
 >:
   VariableLengthBufferProtocol, ArrowBufferIPC
 {
   public typealias ElementType = Element
-  let buffer: FileDataBuffer2
+  let buffer: FileDataBuffer
   public var length: Int { buffer.range.count }
 
-  public init(buffer: FileDataBuffer2) {
+  public init(buffer: FileDataBuffer) {
     self.buffer = buffer
   }
 
@@ -124,5 +104,15 @@ public struct VariableLengthBufferIPC<
     let raw = UnsafeRawBufferPointer(start: start, count: arrayLength)
     let uint8Buffer = raw.bindMemory(to: UInt8.self)
     return Element(uint8Buffer)
+  }
+
+  public func withUnsafeBytes<R>(
+    _ body: (UnsafeRawBufferPointer) throws -> R
+  ) rethrows -> R {
+    let raw = UnsafeRawBufferPointer(
+      start: UnsafeRawPointer(buffer.basePointer),
+      count: buffer.range.count
+    )
+    return try body(raw)
   }
 }
